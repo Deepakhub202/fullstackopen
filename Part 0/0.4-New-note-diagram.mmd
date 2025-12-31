@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant browser
+    participant server
+
+    browser->>server: GET https://studies.cs.helsinki.fi/exampleapp/notes
+    activate server
+    server-->>browser: HTML document, css file, js file
+    deactivate server
+
+    browser->>server: POST user creates a new note and clicks Save
+    activate server
+    server->>server: Save data in database
+    server-->>browser: Response with success message
+    deactivate server
+    Note right of browser: Browser reloads the HTML,css,js,json

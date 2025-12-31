@@ -1,0 +1,14 @@
+sequenceDiagram
+    participant browser
+    participant server
+
+    browser->>server: GET https://studies.cs.helsinki.fi/exampleapp/spa
+    activate server
+    server-->>browser: HTML document, CSS file, JS file
+    deactivate server
+
+    Note right of browser: JS executes and fetches notes JSON
+    browser->>server: GET /json
+    activate server
+    server-->>browser: JSON list of notes
+    deactivate server

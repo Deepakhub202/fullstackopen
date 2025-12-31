@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant browser
+    participant server
+
+    Note right of browser: User types a new note and clicks Save
+    browser->>server: POST /new_note with note data
+    activate server
+    server->>server: Save note in database
+    server-->>browser: Response with success
+    deactivate server
+
+    Note right of browser: JS updates notes list on page (no reload)
