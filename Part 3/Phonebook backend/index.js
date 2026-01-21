@@ -1,85 +1,106 @@
 const express = require('express')
-const morgan = require('morgan')
+const mongoose = require('mongoose')
+const path = require('path')
+require('dotenv').config()
 const cors = require('cors')
+const morgan = require('morgan')
+
+mongoose.set('strictQuery', false)
+
+const personSchema = require('./models/person')
+
 const app = express()
+
+
+const connect = async () => {
+  try {
+    await mongoose.connect(process.env.DB)
+    console.log('DB connected')
+  } catch {
+    console.log('error getting DB')
+  }
+}
+connect()
 
 app.use(cors())
 app.use(express.json())
-app.use(express.static('dist'))
+app.use(morgan('tiny'))
 
 
-morgan.token('body', (request) => {
-  return JSON.stringify(request.body)
+app.use(express.static(path.join(__dirname, 'dist')))
+
+
+const Person = mongoose.models.Person || mongoose.model('Person', personSchema)
+
+
+app.get('/api/persons', (req, res, next) => {
+  Person.find({})
+    .then(persons => res.json(persons))
+    .catch(error => next(error))
 })
 
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
-
-const persons = [
-  { id: "1", name: "Arto Hellas", number: "040-123456" },
-  { id: "2", name: "Ada Lovelace", number: "39-44-5323523" },
-  { id: "3", name: "Dan Abramov", number: "12-43-234345" },
-  { id: "4", name: "Mary Poppendieck", number: "39-23-6423122" }
-]
-
-app.get('/api/persons', (request, response) => {
-  response.json(persons)
-})
-
-app.get('/info', (request, response) => {
-  response.send(`
-    <p>Phonebook has info for ${persons.length} people</p>
-    <p>${new Date()}</p>
-  `)
-})
-
-app.get('/api/persons/:id', (request, response) => {
-  const id = request.params.id
-  const person = persons.find(p => p.id === id)
-
-  if (person) {
-    response.json(person)
-  } else {
-    response.status(404).end()
-  }
-})
-
-app.delete('/api/persons/:id', (request, response) => {
-  const id = request.params.id
-  const index = persons.findIndex(p => p.id === id)
-
-  if (index !== -1) {
-    persons.splice(index, 1)
-  }
-
-  response.status(204).end()
-})
-
-app.post('/api/persons', (request, response) => {
-  const body = request.body
-
-  if (!body.name || !body.number) {
-    return response.status(400).json({
-      error: 'name or number missing'
+app.get('/info', (req, res, next) => {
+  Person.find({})
+    .then(persons => {
+      res.send(`
+        <p>Phonebook has info for ${persons.length} people</p>
+        <p>${new Date()}</p>
+      `)
     })
-  }
+    .catch(error => next(error))
+})
 
-  const nameExists = persons.find(p => p.name === body.name)
+app.post('/api/persons', (req, res, next) => {
+  const body = req.body
 
-  if (nameExists) {
-    return response.status(400).json({
-      error: 'name must be unique'
-    })
-  }
+  const person = new Person({
+    name: body.name,
+    number: body.number
+  })
 
-  const newPerson = {
-    id: Math.floor(Math.random() * 1000000).toString(),
+  person.save()
+    .then(savedPerson => res.json(savedPerson))
+    .catch(error => next(error))
+})
+
+app.delete('/api/persons/:id', (req, res, next) => {
+  Person.findByIdAndDelete(req.params.id)
+    .then(() => res.status(204).end())
+    .catch(error => next(error))
+})
+
+app.put('/api/persons/:id', (req, res, next) => {
+  const body = req.body
+
+  const person = {
     name: body.name,
     number: body.number
   }
 
-  persons.push(newPerson)
-  response.json(newPerson)
+  Person.findByIdAndUpdate(
+    req.params.id,
+    person,
+    { new: true, runValidators: true, context: 'query' }
+  )
+    .then(updatedPerson => res.json(updatedPerson))
+    .catch(error => next(error))
 })
 
+const errorHandler = (error, req, res, next) => {
+  if (error.name === 'CastError') {
+    return res.status(400).json({ error: 'malformatted id' })
+  }
+
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({ error: error.message })
+  }
+
+  next(error)
+}
+
+app.use(errorHandler)
+
 const PORT = 3001
-app.listen(PORT)
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
