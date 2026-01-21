@@ -4,6 +4,7 @@ const path = require('path')
 require('dotenv').config()
 const cors = require('cors')
 const morgan = require('morgan')
+const path = require('path')
 
 mongoose.set('strictQuery', false)
 
@@ -11,6 +12,7 @@ const personSchema = require('./models/person')
 
 const app = express()
 
+app.use(express.static(path.join(__dirname, 'dist')))
 
 const connect = async () => {
   try {
